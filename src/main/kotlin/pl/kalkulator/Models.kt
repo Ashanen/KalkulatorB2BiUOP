@@ -71,14 +71,18 @@ data class UOPMonthResult(
     val taxBase: Double,
     val tax: Double,
     val net: Double,
-    val bonus: Double = 0.0  // Premia w tym miesiącu
+    val bonus: Double = 0.0,  // Premia w tym miesiącu
+    val authorCosts: Double = 0.0  // Koszty autorskie zastosowane (po limicie)
 ) {
     companion object {
+        const val AUTHOR_COSTS_ANNUAL_LIMIT = 120000.0
+
         fun calculate(
             monthData: MonthData,
             grossSalary: Double,
             authorCostPercent: Int,
             accumulatedIncome: Double,
+            accumulatedAuthorCosts: Double = 0.0,
             bonus: Double = 0.0
         ): UOPMonthResult {
             // Całkowite wynagrodzenie (pensja + premia)
@@ -94,7 +98,13 @@ data class UOPMonthResult(
             val healthDeduction = healthBase * 0.0775
 
             // Koszty uzyskania przychodu (autorskie)
-            val costs = totalGross * (authorCostPercent / 100.0)
+            // WAŻNE: Koszty autorskie liczone od (brutto - ZUS), nie od pełnego brutto!
+            val authorBase = totalGross - zusContributions
+            val costsBeforeLimit = authorBase * (authorCostPercent / 100.0)
+
+            // Sprawdź limit roczny 120,000 PLN
+            val remainingLimit = (AUTHOR_COSTS_ANNUAL_LIMIT - accumulatedAuthorCosts).coerceAtLeast(0.0)
+            val costs = costsBeforeLimit.coerceAtMost(remainingLimit)
 
             // Podstawa opodatkowania
             val taxableIncome = totalGross - zusContributions - costs
@@ -117,7 +127,8 @@ data class UOPMonthResult(
                 taxBase = taxBase,
                 tax = tax,
                 net = net,
-                bonus = bonus
+                bonus = bonus,
+                authorCosts = costs
             )
         }
 
@@ -175,6 +186,7 @@ data class YearlySummary(
     val uopTotalGross = uopResults.sumOf { it.grossSalary }
     val uopTotalBonus = uopResults.sumOf { it.bonus }
     val uopTotalZus = uopResults.sumOf { it.zusContributions }
+    val uopTotalAuthorCosts = uopResults.sumOf { it.authorCosts }
     val uopTotalHealth = uopResults.sumOf { it.healthContribution }
     val uopTotalTax = uopResults.sumOf { it.tax }
     val uopTotalNet = uopResults.sumOf { it.net }

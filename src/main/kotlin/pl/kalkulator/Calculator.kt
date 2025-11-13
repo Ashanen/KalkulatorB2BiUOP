@@ -30,6 +30,7 @@ class Calculator(
 
         // Obliczenia UOP
         var accumulatedIncome = 0.0
+        var accumulatedAuthorCosts = 0.0
 
         // Oblicz premię roczną
         val yearlyBonus = if (config.uopYearlyBonus > 0.0) {
@@ -51,9 +52,11 @@ class Calculator(
                 grossSalary = config.uopGrossSalary,
                 authorCostPercent = authorCostPercent,
                 accumulatedIncome = accumulatedIncome,
+                accumulatedAuthorCosts = accumulatedAuthorCosts,
                 bonus = bonus
             )
             accumulatedIncome += result.taxBase
+            accumulatedAuthorCosts += result.authorCosts
             result
         }
 
