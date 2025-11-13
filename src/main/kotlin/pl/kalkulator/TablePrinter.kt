@@ -13,6 +13,7 @@ object TablePrinter {
         printMonthlyTable(summary)
         printYearlyTotals(summary)
         printComparison(summary)
+        printEquivalenceAnalysis(summary)
         printNotes()
     }
 
@@ -95,9 +96,24 @@ object TablePrinter {
         println("║  ┌─────────────────────────────────────────────┐   ┌──────────────────────────────────────────────┐  ║")
         println("║  │           B2B (Ryczałt ${summary.config.b2bTaxRate.toInt()}%)                 │   │              UOP                             │  ║")
         println("║  ├─────────────────────────────────────────────┤   ├──────────────────────────────────────────────┤  ║")
-        println("║  │ Przychód brutto:     ${formatMoneyPadded(summary.b2bTotalRevenue)} │   │ Wynagrodzenie brutto: ${formatMoneyPadded(summary.uopTotalGross)} │  ║")
-        println("║  │ Podatek (${summary.config.b2bTaxRate.toInt()}%):       ${formatMoneyPadded(summary.b2bTotalTax)} │   │ Składki ZUS:          ${formatMoneyPadded(summary.uopTotalZus)} │  ║")
-        println("║  │ DO KIESZENI:         ${formatMoneyPadded(summary.b2bTotalNet)} │   │ Składka zdrowotna:    ${formatMoneyPadded(summary.uopTotalHealth)} │  ║")
+        val uopGrossPlusBonus = if (summary.uopTotalBonus > 0.0) {
+            "${formatMoneyPadded(summary.uopTotalGross + summary.uopTotalBonus)} │  ║"
+        } else {
+            "${formatMoneyPadded(summary.uopTotalGross)} │  ║"
+        }
+
+        println("║  │ Przychód brutto:     ${formatMoneyPadded(summary.b2bTotalRevenue)} │   │ Wynagrodzenie brutto: $uopGrossPlusBonus")
+
+        if (summary.uopTotalBonus > 0.0) {
+            println("║  │ Podatek (${summary.config.b2bTaxRate.toInt()}%):       ${formatMoneyPadded(summary.b2bTotalTax)} │   │   • Pensja (12 mc):   ${formatMoneyPadded(summary.uopTotalGross)} │  ║")
+            println("║  │ DO KIESZENI:         ${formatMoneyPadded(summary.b2bTotalNet)} │   │   • Premia roczna:    ${formatMoneyPadded(summary.uopTotalBonus)} │  ║")
+            println("║  │                                             │   │ Składki ZUS:          ${formatMoneyPadded(summary.uopTotalZus)} │  ║")
+            println("║  │                                             │   │ Składka zdrowotna:    ${formatMoneyPadded(summary.uopTotalHealth)} │  ║")
+        } else {
+            println("║  │ Podatek (${summary.config.b2bTaxRate.toInt()}%):       ${formatMoneyPadded(summary.b2bTotalTax)} │   │ Składki ZUS:          ${formatMoneyPadded(summary.uopTotalZus)} │  ║")
+            println("║  │ DO KIESZENI:         ${formatMoneyPadded(summary.b2bTotalNet)} │   │ Składka zdrowotna:    ${formatMoneyPadded(summary.uopTotalHealth)} │  ║")
+        }
+
         println("║  │                                             │   │ Podatek dochodowy:    ${formatMoneyPadded(summary.uopTotalTax)} │  ║")
 
         if (summary.config.b2bVacationDays > 0) {
@@ -145,6 +161,46 @@ object TablePrinter {
         }
 
         println("║                                                                                                       ║")
+        println("╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝")
+        println()
+    }
+
+    private fun printEquivalenceAnalysis(summary: YearlySummary) {
+        println("╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗")
+        println("║                                    ANALIZA RÓWNOWAŻNOŚCI                                              ║")
+        println("╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣")
+        println("║                                                                                                       ║")
+
+        // Równoważna pensja UOP
+        summary.equivalentUopSalary?.let { salary ->
+            val formatted = String.format("%,.0f", salary)
+            val yearlyFormatted = String.format("%,.0f", salary * 12)
+            println("║   Aby dorównać do B2B, na UOP potrzebujesz:                                                       ║")
+            println("║                                                                                                       ║")
+            println("║     • Pensja miesięczna brutto: $formatted zł/mc                                                     ║")
+            println("║     • Pensja roczna brutto:     $yearlyFormatted zł/rok                                              ║")
+
+            val currentSalary = summary.config.uopGrossSalary
+            val increase = salary - currentSalary
+            val increasePercent = (increase / currentSalary) * 100
+
+            if (increase > 0) {
+                val increaseFormatted = String.format("%,.0f", increase)
+                val percentFormatted = String.format("%.1f", increasePercent)
+                println("║     • Wzrost o: $increaseFormatted zł/mc (+$percentFormatted%)                                      ║")
+            }
+
+            println("║                                                                                                       ║")
+        }
+
+        // Równoważny urlop B2B
+        summary.equivalentB2BVacationDays?.let { days ->
+            if (days > 0) {
+                println("║   Lub: Na B2B możesz wziąć $days dni urlopu (nieopłaconego) i wyjdzie remis z UOP                 ║")
+                println("║                                                                                                       ║")
+            }
+        }
+
         println("╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝")
         println()
     }
