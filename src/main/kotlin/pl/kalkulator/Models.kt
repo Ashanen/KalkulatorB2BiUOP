@@ -21,19 +21,23 @@ data class B2BMonthResult(
     val hourlyRate: Double,
     val hoursPerDay: Double,
     val taxRate: Double,
+    val vacationDays: Int,
     val revenue: Double,
     val tax: Double,
     val net: Double,
-    val totalHours: Double
+    val totalHours: Double,
+    val workedDays: Int
 ) {
     companion object {
         fun calculate(
             monthData: MonthData,
             hourlyRate: Double,
             hoursPerDay: Double,
-            taxRate: Double
+            taxRate: Double,
+            vacationDays: Int = 0
         ): B2BMonthResult {
-            val totalHours = monthData.workingDays * hoursPerDay
+            val workedDays = (monthData.workingDays - vacationDays).coerceAtLeast(0)
+            val totalHours = workedDays * hoursPerDay
             val revenue = totalHours * hourlyRate
             val tax = revenue * (taxRate / 100.0)
             val net = revenue - tax
@@ -43,10 +47,12 @@ data class B2BMonthResult(
                 hourlyRate = hourlyRate,
                 hoursPerDay = hoursPerDay,
                 taxRate = taxRate,
+                vacationDays = vacationDays,
                 revenue = revenue,
                 tax = tax,
                 net = net,
-                totalHours = totalHours
+                totalHours = totalHours,
+                workedDays = workedDays
             )
         }
     }
@@ -147,12 +153,15 @@ data class UOPMonthResult(
  */
 data class YearlySummary(
     val b2bResults: List<B2BMonthResult>,
-    val uopResults: List<UOPMonthResult>
+    val uopResults: List<UOPMonthResult>,
+    val config: Config
 ) {
     val b2bTotalRevenue = b2bResults.sumOf { it.revenue }
     val b2bTotalTax = b2bResults.sumOf { it.tax }
     val b2bTotalNet = b2bResults.sumOf { it.net }
     val b2bTotalDays = b2bResults.sumOf { it.monthData.workingDays }
+    val b2bTotalWorkedDays = b2bResults.sumOf { it.workedDays }
+    val b2bTotalVacationDays = b2bResults.sumOf { it.vacationDays }
     val b2bTotalHours = b2bResults.sumOf { it.totalHours }
 
     val uopTotalGross = uopResults.sumOf { it.grossSalary }

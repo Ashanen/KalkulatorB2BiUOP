@@ -1,28 +1,25 @@
 package pl.kalkulator
 
-fun main() {
-    // Parametry domyślne
-    val b2bRate = 190.0        // zł/h
-    val b2bHours = 8.0         // godzin dziennie
-    val b2bTax = 12.0          // procent podatku ryczałtowego
-    val uopSalary = 28000.0    // zł brutto miesięcznie
-    val authorCostStrategy = Calculator.AuthorCostStrategy.Mixed50_50  // 50/20 na zmianę
+fun main(args: Array<String>) {
+    // Sprawdź czy użytkownik chce trybu interaktywnego czy domyślnego
+    val useInteractive = args.isEmpty() || args.contains("-i") || args.contains("--interactive")
 
-    println()
-    println("Parametry obliczeniowe:")
-    println("  B2B: $b2bRate zł/h × $b2bHours h/dzień, podatek ryczałtowy $b2bTax%")
-    println("  UOP: ${String.format("%,.0f", uopSalary)} zł brutto/mc, koszty autorskie 50%/20% (na zmianę)")
-    println("  UOP: 20 dni urlopu + płatne święta")
-    println()
+    val config = if (useInteractive) {
+        // Tryb interaktywny - pytaj o parametry
+        Config.fromUserInput()
+    } else {
+        // Tryb szybki - użyj domyślnych parametrów
+        println()
+        println("Używam domyślnych parametrów (uruchom z flagą -i dla trybu interaktywnego)")
+        println()
+        Config()
+    }
+
+    // Wyświetl podsumowanie konfiguracji
+    config.printSummary()
 
     // Tworzenie kalkulatora
-    val calculator = Calculator(
-        b2bHourlyRate = b2bRate,
-        b2bHoursPerDay = b2bHours,
-        b2bTaxRate = b2bTax,
-        uopGrossSalary = uopSalary,
-        uopAuthorCostStrategy = authorCostStrategy
-    )
+    val calculator = Calculator(config)
 
     // Obliczenia
     val summary = calculator.calculateYear()

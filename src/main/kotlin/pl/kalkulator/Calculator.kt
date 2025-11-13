@@ -4,21 +4,8 @@ package pl.kalkulator
  * Kalkulator porównujący B2B i UOP
  */
 class Calculator(
-    val b2bHourlyRate: Double = 190.0,
-    val b2bHoursPerDay: Double = 8.0,
-    val b2bTaxRate: Double = 12.0,
-    val uopGrossSalary: Double = 28000.0,
-    val uopAuthorCostStrategy: AuthorCostStrategy = AuthorCostStrategy.Mixed50_50
+    val config: Config
 ) {
-
-    /**
-     * Strategia kosztów autorskich
-     */
-    enum class AuthorCostStrategy {
-        ALWAYS_20,  // Zawsze 20%
-        ALWAYS_50,  // Zawsze 50%
-        Mixed50_50  // 50% miesięcy z 50%, reszta 20%
-    }
 
     /**
      * Oblicza wyniki dla całego roku 2026
@@ -26,23 +13,28 @@ class Calculator(
     fun calculateYear(): YearlySummary {
         val monthsData = Calendar2026.generateYear()
 
+        // Rozkład urlopu B2B na miesiące (proporcjonalnie do dni roboczych)
+        val vacationDistribution = distributeVacation(monthsData, config.b2bVacationDays)
+
         // Obliczenia B2B
-        val b2bResults = monthsData.map { monthData ->
+        val b2bResults = monthsData.mapIndexed { index, monthData ->
+            val vacationDaysThisMonth = vacationDistribution[index]
             B2BMonthResult.calculate(
                 monthData = monthData,
-                hourlyRate = b2bHourlyRate,
-                hoursPerDay = b2bHoursPerDay,
-                taxRate = b2bTaxRate
+                hourlyRate = config.b2bHourlyRate,
+                hoursPerDay = config.b2bHoursPerDay,
+                taxRate = config.b2bTaxRate,
+                vacationDays = vacationDaysThisMonth
             )
         }
 
         // Obliczenia UOP
         var accumulatedIncome = 0.0
         val uopResults = monthsData.mapIndexed { index, monthData ->
-            val authorCostPercent = getAuthorCostPercent(index)
+            val authorCostPercent = config.authorCostsMonthly[index]
             val result = UOPMonthResult.calculate(
                 monthData = monthData,
-                grossSalary = uopGrossSalary,
+                grossSalary = config.uopGrossSalary,
                 authorCostPercent = authorCostPercent,
                 accumulatedIncome = accumulatedIncome
             )
@@ -52,21 +44,36 @@ class Calculator(
 
         return YearlySummary(
             b2bResults = b2bResults,
-            uopResults = uopResults
+            uopResults = uopResults,
+            config = config
         )
     }
 
     /**
-     * Zwraca procent kosztów autorskich dla danego miesiąca
+     * Rozkłada dni urlopu proporcjonalnie do liczby dni roboczych w miesiącach
      */
-    private fun getAuthorCostPercent(monthIndex: Int): Int {
-        return when (uopAuthorCostStrategy) {
-            AuthorCostStrategy.ALWAYS_20 -> 20
-            AuthorCostStrategy.ALWAYS_50 -> 50
-            AuthorCostStrategy.Mixed50_50 -> {
-                // 6 miesięcy z 50%, 6 miesięcy z 20%
-                if (monthIndex % 2 == 0) 50 else 20
-            }
+    private fun distributeVacation(monthsData: List<MonthData>, totalVacationDays: Int): List<Int> {
+        if (totalVacationDays == 0) {
+            return List(12) { 0 }
         }
+
+        val totalWorkingDays = monthsData.sumOf { it.workingDays }
+        val distribution = mutableListOf<Int>()
+        var remainingVacation = totalVacationDays
+
+        monthsData.forEachIndexed { index, monthData ->
+            val proportionalVacation = if (index == 11) {
+                // Ostatni miesiąc - przypisz resztę
+                remainingVacation
+            } else {
+                val proportion = monthData.workingDays.toDouble() / totalWorkingDays
+                val vacationForMonth = (totalVacationDays * proportion).toInt()
+                remainingVacation -= vacationForMonth
+                vacationForMonth
+            }
+            distribution.add(proportionalVacation)
+        }
+
+        return distribution
     }
 }
