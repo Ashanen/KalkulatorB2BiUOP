@@ -70,29 +70,34 @@ data class UOPMonthResult(
     val healthDeduction: Double,
     val taxBase: Double,
     val tax: Double,
-    val net: Double
+    val net: Double,
+    val bonus: Double = 0.0  // Premia w tym miesiącu
 ) {
     companion object {
         fun calculate(
             monthData: MonthData,
             grossSalary: Double,
             authorCostPercent: Int,
-            accumulatedIncome: Double
+            accumulatedIncome: Double,
+            bonus: Double = 0.0
         ): UOPMonthResult {
+            // Całkowite wynagrodzenie (pensja + premia)
+            val totalGross = grossSalary + bonus
+
             // Składki ZUS (pracownik)
             val zusEmployeeRate = 0.1371 // 9.76% emerytalna + 1.5% rentowa + 2.45% chorobowa
-            val zusContributions = grossSalary * zusEmployeeRate
+            val zusContributions = totalGross * zusEmployeeRate
 
             // Podstawa wymiaru składki zdrowotnej
-            val healthBase = grossSalary - zusContributions
+            val healthBase = totalGross - zusContributions
             val healthContribution = healthBase * 0.09
             val healthDeduction = healthBase * 0.0775
 
             // Koszty uzyskania przychodu (autorskie)
-            val costs = grossSalary * (authorCostPercent / 100.0)
+            val costs = totalGross * (authorCostPercent / 100.0)
 
             // Podstawa opodatkowania
-            val taxableIncome = grossSalary - zusContributions - costs
+            val taxableIncome = totalGross - zusContributions - costs
             val taxBase = (taxableIncome / 10.0).toInt() * 10.0 // Zaokrąglenie do 10 zł
 
             // Obliczenie podatku
@@ -100,7 +105,7 @@ data class UOPMonthResult(
             val tax = calculateTax(newAccumulatedIncome, accumulatedIncome, taxBase)
 
             // Netto
-            val net = grossSalary - zusContributions - healthContribution - tax
+            val net = totalGross - zusContributions - healthContribution - tax
 
             return UOPMonthResult(
                 monthData = monthData,
@@ -111,7 +116,8 @@ data class UOPMonthResult(
                 healthDeduction = healthDeduction,
                 taxBase = taxBase,
                 tax = tax,
-                net = net
+                net = net,
+                bonus = bonus
             )
         }
 
@@ -154,7 +160,9 @@ data class UOPMonthResult(
 data class YearlySummary(
     val b2bResults: List<B2BMonthResult>,
     val uopResults: List<UOPMonthResult>,
-    val config: Config
+    val config: Config,
+    val equivalentUopSalary: Double? = null,
+    val equivalentB2BVacationDays: Int? = null
 ) {
     val b2bTotalRevenue = b2bResults.sumOf { it.revenue }
     val b2bTotalTax = b2bResults.sumOf { it.tax }
@@ -165,6 +173,7 @@ data class YearlySummary(
     val b2bTotalHours = b2bResults.sumOf { it.totalHours }
 
     val uopTotalGross = uopResults.sumOf { it.grossSalary }
+    val uopTotalBonus = uopResults.sumOf { it.bonus }
     val uopTotalZus = uopResults.sumOf { it.zusContributions }
     val uopTotalHealth = uopResults.sumOf { it.healthContribution }
     val uopTotalTax = uopResults.sumOf { it.tax }

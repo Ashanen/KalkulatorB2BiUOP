@@ -13,7 +13,9 @@ data class Config(
     // UOP
     val uopGrossSalary: Double = 28000.0,
     val uopVacationDays: Int = 20,
-    val authorCostsMonthly: List<Int> = List(12) { if (it % 2 == 0) 50 else 20 }
+    val authorCostsMonthly: List<Int> = List(12) { if (it % 2 == 0) 50 else 20 },
+    val uopYearlyBonus: Double = 0.0,        // Premia roczna (kwota)
+    val uopYearlyBonusPercent: Double = 0.0  // Premia roczna (procent rocznego brutto)
 ) {
     companion object {
         /**
@@ -42,6 +44,25 @@ data class Config(
             println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
             val uopSalary = readDoubleWithDefault("Wynagrodzenie brutto (zł/mc)", 28000.0)
             val uopVacation = readIntWithDefault("Dni urlopu rocznie", 20)
+
+            println()
+            println("Premia roczna:")
+            println("  1. Brak premii")
+            println("  2. Premia w kwocie stałej")
+            println("  3. Premia jako % rocznego brutto")
+            val bonusChoice = readIntWithDefault("Wybierz opcję (1-3)", 1)
+
+            val (bonusAmount, bonusPercent) = when (bonusChoice) {
+                2 -> {
+                    val amount = readDoubleWithDefault("  Kwota premii (zł)", 0.0)
+                    Pair(amount, 0.0)
+                }
+                3 -> {
+                    val percent = readDoubleWithDefault("  Procent rocznego brutto (%)", 0.0)
+                    Pair(0.0, percent)
+                }
+                else -> Pair(0.0, 0.0)
+            }
 
             println()
             println("Koszty uzyskania przychodu (autorskie):")
@@ -79,7 +100,9 @@ data class Config(
                 b2bVacationDays = b2bVacation,
                 uopGrossSalary = uopSalary,
                 uopVacationDays = uopVacation,
-                authorCostsMonthly = authorCosts
+                authorCostsMonthly = authorCosts,
+                uopYearlyBonus = bonusAmount,
+                uopYearlyBonusPercent = bonusPercent
             )
         }
 
@@ -160,6 +183,16 @@ data class Config(
         println("UOP:")
         println("  • Wynagrodzenie brutto: ${String.format("%,.0f", uopGrossSalary)} zł/mc")
         println("  • Dni urlopu: $uopVacationDays dni (płatne)")
+
+        // Premia roczna
+        if (uopYearlyBonus > 0.0) {
+            println("  • Premia roczna: ${String.format("%,.0f", uopYearlyBonus)} zł")
+        } else if (uopYearlyBonusPercent > 0.0) {
+            val yearlyGross = uopGrossSalary * 12
+            val bonusAmount = yearlyGross * (uopYearlyBonusPercent / 100.0)
+            println("  • Premia roczna: ${String.format("%.1f", uopYearlyBonusPercent)}% (${String.format("%,.0f", bonusAmount)} zł)")
+        }
+
         println("  • Koszty autorskie:")
 
         val costsPattern = authorCostsMonthly.joinToString(", ") { "${it}%" }
