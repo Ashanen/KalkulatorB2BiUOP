@@ -65,9 +65,13 @@ def calculate_b2b(hourly_rate: float, hours_per_day: float,
 
 
 def calculate_uop_month(gross: float, author_cost_percent: int,
-                        accumulated_income: float, bonus: float = 0.0) -> dict:
+                        accumulated_income: float, accumulated_author_costs: float,
+                        bonus: float = 0.0) -> dict:
     """
     Oblicza wynagrodzenie UOP dla jednego miesiąca
+
+    UWAGA: Koszty autorskie liczy się od (Brutto - ZUS), a nie od pełnego brutto!
+    Limit roczny kosztów autorskich: 120,000 PLN
     """
     # Całkowite wynagrodzenie (pensja + premia)
     total_gross = gross + bonus
@@ -81,8 +85,15 @@ def calculate_uop_month(gross: float, author_cost_percent: int,
     health_contribution = health_base * 0.09
     health_deduction = health_base * 0.0775
 
-    # Koszty uzyskania przychodu
-    costs = total_gross * (author_cost_percent / 100.0)
+    # Koszty uzyskania przychodu (autorskie)
+    # WAŻNE: Koszty autorskie liczone od (brutto - ZUS), nie od pełnego brutto!
+    author_base = total_gross - zus_contributions
+    costs_before_limit = author_base * (author_cost_percent / 100.0)
+
+    # Sprawdź limit roczny 120,000 PLN
+    author_costs_limit = 120000.0
+    remaining_limit = max(0, author_costs_limit - accumulated_author_costs)
+    costs = min(costs_before_limit, remaining_limit)
 
     # Podstawa opodatkowania
     taxable_income = total_gross - zus_contributions - costs
@@ -103,7 +114,9 @@ def calculate_uop_month(gross: float, author_cost_percent: int,
         'health': health_contribution,
         'tax_base': tax_base,
         'tax': tax,
-        'net': net
+        'net': net,
+        'author_costs': costs,
+        'author_costs_before_limit': costs_before_limit
     }
 
 
@@ -145,22 +158,27 @@ def calculate_uop_year(gross_salary: float, author_cost_percent: int,
     yearly_bonus = yearly_gross * (bonus_percent / 100.0)
 
     accumulated_income = 0.0
+    accumulated_author_costs = 0.0
     total_net = 0.0
     total_tax = 0.0
     total_zus = 0.0
     total_health = 0.0
+    total_author_costs = 0.0
 
     for month in range(12):
         # Premia wypłacana w grudniu (miesiąc 11)
         bonus = yearly_bonus if month == 11 else 0.0
 
         result = calculate_uop_month(gross_salary, author_cost_percent,
-                                     accumulated_income, bonus)
+                                     accumulated_income, accumulated_author_costs,
+                                     bonus)
         accumulated_income += result['tax_base']
+        accumulated_author_costs += result['author_costs']
         total_net += result['net']
         total_tax += result['tax']
         total_zus += result['zus']
         total_health += result['health']
+        total_author_costs += result['author_costs']
 
     return {
         'gross_salary': gross_salary,
@@ -170,7 +188,8 @@ def calculate_uop_year(gross_salary: float, author_cost_percent: int,
         'total_zus': total_zus,
         'total_health': total_health,
         'total_tax': total_tax,
-        'total_net': total_net
+        'total_net': total_net,
+        'total_author_costs': total_author_costs
     }
 
 
@@ -202,6 +221,7 @@ def print_scenario(scenario_num: int, uop_gross: float, b2b_rate: float,
     print(f"  Premia roczna ({bonus_percent}%):     {uop['bonus']:>12,.2f} PLN")
     print(f"  Razem brutto:             {uop['total_gross']:>12,.2f} PLN")
     print(f"  Składki ZUS:             -{uop['total_zus']:>12,.2f} PLN")
+    print(f"  Koszty autorskie ({author_cost}%):   -{uop['total_author_costs']:>12,.2f} PLN")
     print(f"  Składka zdrowotna:       -{uop['total_health']:>12,.2f} PLN")
     print(f"  Podatek:                 -{uop['total_tax']:>12,.2f} PLN")
     print(f"  {'─'*45}")
@@ -297,8 +317,10 @@ def main():
     print("Wszystkie obliczenia uwzględniają:")
     print("  • B2B: stawka 190 PLN/h, 8h/dzień, 12% podatek ryczałtowy")
     print("  • B2B: 27 dni wolnych (20 urlop + 7 świąt, wszystkie nieopłacone)")
-    print("  • UOP: 20% koszty autorskie, 10% premia roczna")
+    print("  • UOP: 20% koszty autorskie (od brutto - ZUS), limit 120k PLN/rok")
+    print("  • UOP: 10% premia roczna (wypłacana w grudniu)")
     print("  • UOP: 20 dni urlopu płatnego + 7 świąt płatnych")
+    print("  • UOP: Podatek progresywny 12% do 120k, 32% powyżej")
     print(f"{'='*80}\n")
 
 
