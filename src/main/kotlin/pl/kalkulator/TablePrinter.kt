@@ -108,10 +108,12 @@ object TablePrinter {
             println("║  │ Podatek (${summary.config.b2bTaxRate.toInt()}%):       ${formatMoneyPadded(summary.b2bTotalTax)} │   │   • Pensja (12 mc):   ${formatMoneyPadded(summary.uopTotalGross)} │  ║")
             println("║  │ DO KIESZENI:         ${formatMoneyPadded(summary.b2bTotalNet)} │   │   • Premia roczna:    ${formatMoneyPadded(summary.uopTotalBonus)} │  ║")
             println("║  │                                             │   │ Składki ZUS:          ${formatMoneyPadded(summary.uopTotalZus)} │  ║")
+            println("║  │                                             │   │ Koszty autorskie:     ${formatMoneyPadded(summary.uopTotalAuthorCosts)} │  ║")
             println("║  │                                             │   │ Składka zdrowotna:    ${formatMoneyPadded(summary.uopTotalHealth)} │  ║")
         } else {
             println("║  │ Podatek (${summary.config.b2bTaxRate.toInt()}%):       ${formatMoneyPadded(summary.b2bTotalTax)} │   │ Składki ZUS:          ${formatMoneyPadded(summary.uopTotalZus)} │  ║")
-            println("║  │ DO KIESZENI:         ${formatMoneyPadded(summary.b2bTotalNet)} │   │ Składka zdrowotna:    ${formatMoneyPadded(summary.uopTotalHealth)} │  ║")
+            println("║  │ DO KIESZENI:         ${formatMoneyPadded(summary.b2bTotalNet)} │   │ Koszty autorskie:     ${formatMoneyPadded(summary.uopTotalAuthorCosts)} │  ║")
+            println("║  │                                             │   │ Składka zdrowotna:    ${formatMoneyPadded(summary.uopTotalHealth)} │  ║")
         }
 
         println("║  │                                             │   │ Podatek dochodowy:    ${formatMoneyPadded(summary.uopTotalTax)} │  ║")
